@@ -7,7 +7,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Microsoft.IdentityModel.Tokens;
 
-namespace CerberusFramework
+namespace Cerberus
 {
     class Program
     {
@@ -20,7 +20,7 @@ namespace CerberusFramework
 	    // Tenant is the tenant ID (e.g. contoso.onmicrosoft.com, or 'common' for multi-tenant)
 	    static string _tenant = System.Configuration.ConfigurationManager.AppSettings["Tenant"];
 	    
-	    // Scopes are the security setings that tell what your are allowed to do with the Application
+	    // Scopes are the security settings that tell what your are allowed to do with the Application
 	    static string _scopes = System.Configuration.ConfigurationManager.AppSettings["Scopes"];
 
 	    // Authority is the URL for authority, composed by Microsoft identity platform endpoint and the tenant name (e.g. https://login.microsoftonline.com/contoso.onmicrosoft.com/v2.0)
@@ -45,7 +45,16 @@ namespace CerberusFramework
             
             if (result != null)
             {
-	            Console.WriteLine(IsValidToken(result) ? GetTokenInfo(result) : "Token Invalid");
+	            SecurityToken validatedToken;
+	            //ClaimsPrincipal principal = IsValidToken(result, out validatedToken); // Validate via open id connect
+	            if (IsValidToken(result))
+	            {
+		            Console.WriteLine(GetTokenInfo(result));
+	            }
+	            else
+	            {
+		            Console.WriteLine( "Token Invalid");
+	            }
             }
             else
             {
@@ -83,25 +92,22 @@ namespace CerberusFramework
 	        string expiry = authResult.ClaimsPrincipal.Claims.FirstOrDefault(c => c.Type == "exp")?.Value;//exp--1636577943 - timestamp
 	        string preferredUserName = authResult.ClaimsPrincipal.Claims.FirstOrDefault(c => c.Type == "preferred_username")?.Value;//user logon richardwiz@outlook.com
 	        string tenantId = authResult.ClaimsPrincipal.Claims.FirstOrDefault(c => c.Type == "tid")?.Value;//-a4bedeb1-28ad-43ba-8557-f533ac27ac8a
-
-			// Check Issuer is Azure.
-			if (issuer != null && issuer.Contains(_azureIssuerId))
-			{
-				return false;
-			}
+	        
 			// Check Audience is the correct client.
-			if (audience != null && audience.Equals(_clientId))
+			if (audience != null && !audience.Equals(_clientId))
 			{
 				return false;
 			}
 			// Check the token has not expired.
-			if (expiry != "9188040d-6c67-4c5b-b112-36a304b66dad")
+			long unixSeconds = Convert.ToInt32(expiry);
+			DateTimeOffset expiryTimeOffset = DateTimeOffset.FromUnixTimeSeconds( unixSeconds);
+			if (DateTime.Compare(expiryTimeOffset.LocalDateTime, DateTime.Now) < 0 ) // expiry is earlier than now. ie.has expired.
 			{
 				return false;
 			}
 
 			// Check the preferred username is the logged on user (?)
-			if (preferredUserName != null && preferredUserName.Contains("richardwiz@outlook.com"))
+			if (preferredUserName != null && !preferredUserName.Contains("richardwiz@outlook.com"))
 			{
 				return false;
 			}
@@ -110,27 +116,39 @@ namespace CerberusFramework
 			return ((tenantId != null) && (tenantId.Equals(_tenant)));
         }
         
-        public static Boolean IsValidToken(AuthenticationResult authResult, out SecurityToken validatedToken)
+        public static ClaimsPrincipal IsValidToken(AuthenticationResult authResult, out SecurityToken validatedToken)
         {
 	        var tokenHandler  = new JwtSecurityTokenHandler();
+	        ClaimsPrincipal principal = new ClaimsPrincipal();
+	        
+	        var authorityEndpoint = "https://login.microsoftonline.com";
+	        var openIdConfigurationEndpoint = $"{authorityEndpoint}.well-known/openid-configuration";
+	        //IConfigurationManager<OpenIdConnectConfiguration> configurationManager = new ConfigurationManager<OpenIdConnectConfiguration>(openIdConfigurationEndpoint, new OpenIdConnectConfigurationRetriever());
+	        //OpenIdConnectConfiguration openIdConfig = await configurationManager.GetConfigurationAsync(CancellationToken.None);
+	    
+			        
 	        try
 	        {
-		        ClaimsPrincipal principal = tokenHandler.ValidateToken(authResult.IdToken
+		        principal = tokenHandler.ValidateToken(authResult.IdToken
 					, new TokenValidationParameters
 	              {
-		               RequireExpirationTime = true
-		             , ValidateAudience = true // Identifies the intended recipient of the token. In id_tokens, the audience is your app's Application ID
-		             , ValidateIssuer = true //Identifies the issuer, or "authorization server" that constructs and returns the token, ValidateIssuer = true
-		             , ValidIssuer = _tenant
-				     , ValidAudience = _clientId
+						  ValidateIssuer = true
+						, ValidIssuer = "https://login.microsoftonline.com"//Identifies the issuer, or "authorization server" that constructs and returns the token
+						, ValidateAudience = true
+						, ValidAudience = _clientId // Identifies the intended recipient of the token. In id_tokens, the audience is your app's Application ID
+						, ValidateIssuerSigningKey = true
+						//, IssuerSigningKeys = openidconfig.SigningKeys
+						, RequireExpirationTime = true
+						, ValidateLifetime = true
+						, RequireSignedTokens = true
 	              }, out validatedToken);
 	        }
 	        catch//(SecurityTokenValidationException)
 	        {
 		        validatedToken = null;
-		        return false;
+		        return null;
 	        }
-	        return true;
+	        return principal;
         }
 
 		private static string GetTokenInfo(AuthenticationResult authResult)
@@ -139,8 +157,12 @@ namespace CerberusFramework
 	        var handler = new JwtSecurityTokenHandler();
 
 	        string issuer = authResult.ClaimsPrincipal.Claims.FirstOrDefault(x => x.Type == "iss")?.Value;
+	        string expiry = authResult.ClaimsPrincipal.Claims.FirstOrDefault(x => x.Type == "exp")?.Value;
+	        long unixSeconds = Convert.ToInt32(expiry);
+	        DateTimeOffset expiryTimeOffset = DateTimeOffset.FromUnixTimeSeconds( unixSeconds).LocalDateTime;
 			StringBuilder sb = new StringBuilder();
 			sb.AppendFormat("Issuer --> {0}\n", issuer);
+			sb.AppendFormat("Token will Expire at {0}. \nTime is {1} now.\n",DateTimeOffset.FromUnixTimeSeconds( unixSeconds).LocalDateTime, DateTime.Now);
 			if (authResult.ClaimsPrincipal.Claims != null)
 			{
 				foreach (var claim in authResult.ClaimsPrincipal.Claims)

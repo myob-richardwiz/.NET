@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="VcsDirectoryMappings">
+    <mapping directory="$PROJECT_DIR$/../../Java" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../MyriadOfForgottenThings" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../Node/ms-identity-javascript-nodejs-tutorial" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../Powershell" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../Python" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../Shell/wait-for-it" vcs="Git" />
+    <mapping directory="$PROJECT_DIR$/../../Terraform" vcs="Git" />
+  </component>
+</project>
