@@ -108,8 +108,9 @@ namespace Cerberus
 				return false;
 			}
 
-			// Check the preferred username is the logged on user (?)
-			if (preferredUserName != null && preferredUserName.IndexOf("richard.wisbey", StringComparison.OrdinalIgnoreCase) < 0)
+			// Check the preferred username is the logged on user.
+			var winId = System.Security.Principal.WindowsIdentity.GetCurrent();
+			if (preferredUserName != null && preferredUserName.IndexOf(winId.Name, StringComparison.OrdinalIgnoreCase) < 0)
 			{
 				return false;
 			}
