@@ -41,7 +41,7 @@ namespace Cerberus
                                                                          .WithAuthority(AzureCloudInstance.AzurePublic, _tenant, true)
                                                                          .WithRedirectUri(_redirectUri)
                                                                          .Build();
-			AuthenticationResult result = GetIdToken(wizApp).Result;
+			AuthenticationResult result = GetIdToken(myobApp).Result;
             
             if (result != null)
             {
@@ -73,6 +73,7 @@ namespace Cerberus
 	        string[] scopes = _scopes.Split(','); 
 
 	        try
+	        
 	        {
 		        authResult = await app.AcquireTokenInteractive(scopes).WithAccount(firstAccount)
 		                              .WithPrompt(Prompt.SelectAccount).ExecuteAsync();
@@ -80,6 +81,7 @@ namespace Cerberus
 	        catch (MsalException msalex)
 	        {
 		        string res = $"Error Acquiring Token:{System.Environment.NewLine}{msalex}";
+		        Console.WriteLine(res);
 	        }
 
 	        return authResult;
@@ -107,7 +109,7 @@ namespace Cerberus
 			}
 
 			// Check the preferred username is the logged on user (?)
-			if (preferredUserName != null && !preferredUserName.Contains("richardwiz@outlook.com"))
+			if (preferredUserName != null && preferredUserName.IndexOf("richard.wisbey", StringComparison.OrdinalIgnoreCase) < 0)
 			{
 				return false;
 			}
